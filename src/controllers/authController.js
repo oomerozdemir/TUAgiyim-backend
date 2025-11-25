@@ -1,4 +1,3 @@
-// src/controllers/authController.js
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import prisma from "../prisma.js";
@@ -10,15 +9,12 @@ const genAccessToken = (id) =>
 const genRefreshToken = (id) =>
   jwt.sign({ id }, process.env.REFRESH_SECRET, { expiresIn: "30d" });
 
-// ✅ DÜZELTME: Cross-Domain Cookie Ayarları
-// Frontend (Vercel) ve Backend (Render) farklı domainlerde olduğu için
-// SameSite: 'None' ve Secure: true şarttır.
 const setRefreshCookie = (res, token) => {
   res.cookie("rt", token, {
     httpOnly: true,
-    sameSite: "None", // ÖNEMLİ: Cross-site istekler için 'None' olmalı
-    secure: true,     // ÖNEMLİ: 'None' kullanıldığında Secure true olmalı (HTTPS)
-    maxAge: 30 * 24 * 60 * 60 * 1000,
+    sameSite: "None", 
+    secure: true,     
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 gün
     path: "/",
   });
 };
@@ -112,7 +108,7 @@ export const getProfile = asyncHandler(async (req, res) => {
 export const logout = (req, res) => {
   res.clearCookie("rt", {
     httpOnly: true,
-    sameSite: "None", // Çıkış yaparken de aynı ayarlarla silmeliyiz
+    sameSite: "None", 
     secure: true,
     path: "/",
   });
