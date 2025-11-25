@@ -12,8 +12,8 @@ const genRefreshToken = (id) =>
 const setRefreshCookie = (res, token) => {
   res.cookie("rt", token, {
     httpOnly: true,
-    sameSite: "lax",                // localhost↔localhost için yeterli
-    secure: process.env.NODE_ENV === "production",
+    sameSite: "None", 
+    secure: true,     
     maxAge: 30 * 24 * 60 * 60 * 1000,
     path: "/",
   });
@@ -32,6 +32,8 @@ export const registerUser = asyncHandler(async (req, res) => {
 
   const accessToken = genAccessToken(user.id);
   const refreshToken = genRefreshToken(user.id);
+  
+  // Güncellenmiş cookie fonksiyonunu kullanır
   setRefreshCookie(res, refreshToken);
 
   res.status(201).json({
@@ -39,8 +41,8 @@ export const registerUser = asyncHandler(async (req, res) => {
     name: user.name,
     email: user.email,
     accessToken,
-    token: accessToken,       // mevcut koda uyumluluk
-    refreshToken,             // 🔥 fallback için body’de de döndürüyoruz
+    token: accessToken,
+    refreshToken, 
   });
 });
 
@@ -57,6 +59,8 @@ export const loginUser = asyncHandler(async (req, res) => {
 
   const accessToken = genAccessToken(user.id);
   const refreshToken = genRefreshToken(user.id);
+  
+  // Güncellenmiş cookie fonksiyonunu kullanır
   setRefreshCookie(res, refreshToken);
 
   res.json({
@@ -64,19 +68,17 @@ export const loginUser = asyncHandler(async (req, res) => {
     name: user.name,
     email: user.email,
     accessToken,
-    token: accessToken,       // uyumluluk
-    refreshToken,             // 🔥 fallback
+    token: accessToken,
+    refreshToken,
   });
 });
 
 // POST /api/auth/refresh
 export const refreshToken = asyncHandler(async (req, res) => {
-  // GEÇİCİ LOG (debug)
-  console.log("refresh cookies:", req.cookies);
-
-  // 3 farklı kaynaktan kabul et: cookie, Authorization: Bearer <rt>, body.rt
   const auth = req.headers.authorization || "";
   const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : null;
+  
+  // Cookie, Header veya Body'den token ara
   const rt = req.cookies?.rt || bearer || req.body?.rt;
 
   if (!rt) return res.status(401).json({ message: "No refresh token" });
@@ -84,8 +86,10 @@ export const refreshToken = asyncHandler(async (req, res) => {
   try {
     const payload = jwt.verify(rt, process.env.REFRESH_SECRET);
     const newAccess = genAccessToken(payload.id);
-    const newRefresh = genRefreshToken(payload.id);   // rotasyon
+    const newRefresh = genRefreshToken(payload.id);
+    
     setRefreshCookie(res, newRefresh);
+    
     return res.json({ accessToken: newAccess, token: newAccess, refreshToken: newRefresh });
   } catch (e) {
     return res.status(401).json({ message: "Invalid refresh token" });
@@ -101,16 +105,16 @@ export const getProfile = asyncHandler(async (req, res) => {
   res.json(user);
 });
 
+// POST /api/auth/logout
 export const logout = (req, res) => {
   res.clearCookie("rt", {
     httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    sameSite: "None", // Çıkış yaparken de aynı ayarlarla silmeliyiz
+    secure: true,
     path: "/",
   });
   return res.json({ ok: true });
 };
-
 
 // PUT /api/auth/profile
 export const updateProfile = asyncHandler(async (req, res) => {
@@ -121,7 +125,6 @@ export const updateProfile = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Güncellenecek bir alan yok." });
   }
 
-  // email değişiyorsa çakışma kontrolü
   if (email) {
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing && existing.id !== userId) {
