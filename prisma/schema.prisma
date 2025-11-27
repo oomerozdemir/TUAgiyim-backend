@@ -118,13 +118,12 @@ model OrderItem {
   @@index([colorId])
 }
 
-
 enum OrderStatus {
-  PENDING
-  AWAITING_PAYMENT
-  PAID
-  SHIPPED
-  CANCELED
+  PENDING           // Sepet aşaması
+  AWAITING_PAYMENT  // Ödeme ekranında 
+  PAID              // Ödeme alındı
+  SHIPPED           // Kargolandı
+  CANCELED          // İptal
 }
 
 model StockMovement {
