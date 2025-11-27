@@ -76,7 +76,7 @@ export const startPayment = asyncHandler(async (req, res) => {
     data: {
       orderNumber: orderNumber,
       userId,
-      status: "AWAITING_PAYMENT", // ÖNEMLİ: Yeni enum değeri
+      status: "PENDING", // ÖNEMLİ: Yeni enum değeri
       total,
       shippingName: addressInfo.name,
       shippingAddressLine: addressInfo.address,
