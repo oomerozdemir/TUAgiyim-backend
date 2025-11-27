@@ -70,7 +70,7 @@ export const startPayment = asyncHandler(async (req, res) => {
     data: {
       orderNumber: orderNumber,
       userId,
-      status: "AWAITING_PAYMENT", 
+      status: "PENDING", 
       total,
       shippingName: addressInfo.name,
       shippingAddressLine: addressInfo.address,
