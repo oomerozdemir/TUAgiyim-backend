@@ -1,4 +1,7 @@
 import crypto from "crypto";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const merchant_id = process.env.PAYTR_MERCHANT_ID;
 const merchant_key = process.env.PAYTR_MERCHANT_KEY;
@@ -11,26 +14,24 @@ export const getPaytrToken = async ({
   user_ip,
   merchant_oid,
   email,
-  payment_amount, // 9.99 formatında olmalı (kuruslu ise nokta) veya 100 ile çarpılmış değil, doğrudan TL
+  payment_amount,
   user_name,
   user_address,
   user_phone,
-  user_basket, // HTML encoded JSON string: [['Ürün Adı', 'Fiyat', 'Adet'], ...]
-  debug_on = 1, // Canlıda 0 yapın
+  user_basket,
+  debug_on = 1,
   timeout_limit = 30,
-  test_mode = 1 // Canlıda 0 yapın
+  test_mode = 1
 }) => {
   
-  // PayTR tutarı 100 ile çarpıp ister (Örn: 10.50 TL -> 1050) ANCAK bazı entegrasyon tiplerinde direkt TL ister.
-  // İframe API dökümanına göre: "paytr_token" alırken amount * 100 şeklinde gönderilmelidir.
+  // PayTR tutarı 100 ile çarpıp ister (Örn: 10.50 TL -> 1050)
   const paytr_amount = payment_amount * 100;
 
-  const no_installment = 0; // Taksit yapılsın mı? 0: Evet, 1: Hayır
-  const max_installment = 0; // 0: Sınırsız
+  const no_installment = 0; 
+  const max_installment = 0; 
   const currency = "TL";
   
-  // Hash oluşturma sırası kritiktir:
-  // merchant_id + user_ip + merchant_oid + email + payment_amount + user_basket + no_installment + max_installment + currency + test_mode
+  // Hash oluşturma
   const hash_str = 
     merchant_id + 
     user_ip + 
@@ -48,6 +49,8 @@ export const getPaytrToken = async ({
     .update(hash_str + merchant_salt)
     .digest("base64");
 
+  const baseURL = process.env.FRONTEND_URL || "http://localhost:5173";
+
   const params = {
     merchant_id,
     user_ip,
@@ -62,18 +65,15 @@ export const getPaytrToken = async ({
     user_name,
     user_address,
     user_phone,
-    merchant_ok_url: `${process.env.APP_URL}/siparis-basarili`, // Frontend başarı sayfası
-    merchant_fail_url: `${process.env.APP_URL}/siparis-basarisiz`, // Frontend hata sayfası
+    // Başarılı ve Hatalı işlem sonrası kullanıcının tarayıcıda yönlendirileceği sayfalar
+    merchant_ok_url: `${baseURL}/siparis-basarili`, 
+    merchant_fail_url: `${baseURL}/siparis-basarisiz`,
     timeout_limit,
     currency,
     test_mode
   };
 
-  // PayTR API'ye istek atıp token (iframe url) alacağız
-  // PayTR API Endpoint
   const endpoint = "https://www.paytr.com/odeme/api/get-token";
-  
-  // Form data formatında post etmek gerekir
   const formData = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     formData.append(key, value);
@@ -85,7 +85,7 @@ export const getPaytrToken = async ({
       body: formData,
     });
     const result = await response.json();
-    return result; // { status: 'success', token: '...' }
+    return result; 
   } catch (error) {
     console.error("PayTR Token Hatası:", error);
     throw new Error("Ödeme başlatılamadı.");
