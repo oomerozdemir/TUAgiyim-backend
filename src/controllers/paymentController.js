@@ -90,7 +90,7 @@ export const startPayment = asyncHandler(async (req, res) => {
   });
 
   // 5. PayTR Token Al
-  const user_basket = JSON.stringify(basket);
+  const user_basket = Buffer.from(JSON.stringify(basket)).toString("base64");
   const paytrResult = await getPaytrToken({
     user_ip: userIp,
     merchant_oid: merchant_oid,
