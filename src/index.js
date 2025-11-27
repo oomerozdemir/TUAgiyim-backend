@@ -64,6 +64,15 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/payment", paymentRoutes);
 
+app.get("/", (req, res) => {
+  res.json({
+    status: "success",
+    message: "Backend is running successfully 🚀",
+    docs: "/api/health"
+  });
+});
+
+
 // 404 & Error
 app.use(notFound);
 app.use(errorHandler);
