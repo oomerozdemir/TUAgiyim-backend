@@ -5,12 +5,10 @@ import { sendMail } from "../utils/mailService.js";
 import { buildOrderConfirmationEmail } from "../utils/emailTemplates.js";
 
 /**
- * 1. Ödeme Başlatma (Frontend'den Tetiklenir)
- * Siparişi DB'ye "AWAITING_PAYMENT" olarak kaydeder ve PayTR Token (iFrame) döner.
+ * 1. Ödeme Başlatma
  */
 export const startPayment = asyncHandler(async (req, res) => {
   const userId = req.user.id;
-  // Kullanıcı IP'sini al (Proxy arkasında ise x-forwarded-for kullanılır)
   const userIp = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "127.0.0.1";
   
   const { items, shipping, shippingAddressId } = req.body;
@@ -23,13 +21,11 @@ export const startPayment = asyncHandler(async (req, res) => {
   const productMap = new Map(products.map((p) => [p.id, p]));
 
   let total = 0;
-  const basket = []; // PayTR formatı: [['Ürün Adı', 'Birim Fiyat', 'Adet'], ...]
+  const basket = []; 
 
   for (const item of items) {
     const product = productMap.get(item.productId);
     if (!product) throw { status: 400, message: "Ürün bulunamadı." };
-    
-    // Not: Stok düşümü callback'te yapılacak, burada sadece kontrol edilebilir.
     
     const price = Number(product.price);
     total += price * item.quantity;
@@ -46,8 +42,7 @@ export const startPayment = asyncHandler(async (req, res) => {
   const START_NUMBER = 4758;
   const orderNumber = lastOrder && lastOrder.orderNumber >= START_NUMBER ? lastOrder.orderNumber + 1 : START_NUMBER;
   
-  // PayTR merchant_oid benzersiz olmalı. Sipariş No + Rastgele Sayı
-  const merchant_oid = `SP-${orderNumber}-${Date.now().toString().slice(-4)}`; 
+  const merchant_oid = `SP${orderNumber}R${Date.now().toString().slice(-4)}`; 
 
   // 3. Adres Bilgisi Hazırla
   let addressInfo = {};
@@ -70,18 +65,16 @@ export const startPayment = asyncHandler(async (req, res) => {
     };
   }
 
-  // 4. Veritabanına "AWAITING_PAYMENT" olarak kaydet
-  // Bu durum CartController (PENDING) ile karışmaz.
+  // 4. Siparişi Oluştur
   await prisma.order.create({
     data: {
       orderNumber: orderNumber,
       userId,
-      status: "PENDING", // ÖNEMLİ: Yeni enum değeri
+      status: "AWAITING_PAYMENT", 
       total,
       shippingName: addressInfo.name,
       shippingAddressLine: addressInfo.address,
       shippingPhone: addressInfo.phone,
-      // Diğer kargo alanlarını shipping nesnesinden doldurabilirsiniz
       shippingCity: shipping?.city,
       shippingDistrict: shipping?.district,
       items: {
@@ -91,7 +84,6 @@ export const startPayment = asyncHandler(async (req, res) => {
             price: productMap.get(i.productId).price,
             sizeId: i.sizeId,
             colorId: i.colorId,
-            // sizeLabel ve colorLabel frontend'den geliyorsa ekleyebilirsiniz
         }))
       }
     }
@@ -108,7 +100,7 @@ export const startPayment = asyncHandler(async (req, res) => {
     user_address: addressInfo.address,
     user_phone: addressInfo.phone,
     user_basket,
-    test_mode: 1 // Canlıda 0 yapın
+    test_mode: process.env.PAYTR_TEST_MODE || 1 
   });
 
   if (paytrResult.status === "success") {
@@ -118,7 +110,7 @@ export const startPayment = asyncHandler(async (req, res) => {
     });
   } else {
     console.error("PayTR Error:", paytrResult.reason);
-    return res.status(500).json({ message: "Ödeme servisine bağlanılamadı." });
+    return res.status(500).json({ message: "Ödeme servisine bağlanılamadı. Hata: " + paytrResult.reason });
   }
 });
 
@@ -133,8 +125,7 @@ export const paymentCallback = asyncHandler(async (req, res) => {
     return res.send("PAYTR notification failed: bad hash");
   }
 
-  // OrderNumber'ı parse et (SP-4759-1234 -> 4759)
-  const orderNumberStr = merchant_oid.split('-')[1];
+  const orderNumberStr = merchant_oid.split('R')[0].replace('SP', '');
   const orderNumber = parseInt(orderNumberStr);
 
   const order = await prisma.order.findUnique({

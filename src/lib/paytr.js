@@ -21,17 +21,14 @@ export const getPaytrToken = async ({
   user_basket,
   debug_on = 1,
   timeout_limit = 30,
-  test_mode = 1
+  test_mode = process.env.PAYTR_TEST_MODE || 1 
 }) => {
   
-  // PayTR tutarı 100 ile çarpıp ister (Örn: 10.50 TL -> 1050)
   const paytr_amount = payment_amount * 100;
-
   const no_installment = 0; 
   const max_installment = 0; 
   const currency = "TL";
   
-  // Hash oluşturma
   const hash_str = 
     merchant_id + 
     user_ip + 
@@ -49,7 +46,8 @@ export const getPaytrToken = async ({
     .update(hash_str + merchant_salt)
     .digest("base64");
 
-  const baseURL = process.env.FRONTEND_URL || "http://localhost:5173";
+  const merchant_ok_url = process.env.PAYTR_OK_URL || "http://tuagiyim.com/siparis-basarili";
+  const merchant_fail_url = process.env.PAYTR_FAIL_URL || "http://tuagiyim.com/siparis-basarisiz";
 
   const params = {
     merchant_id,
@@ -65,9 +63,8 @@ export const getPaytrToken = async ({
     user_name,
     user_address,
     user_phone,
-    // Başarılı ve Hatalı işlem sonrası kullanıcının tarayıcıda yönlendirileceği sayfalar
-    merchant_ok_url: `${baseURL}/siparis-basarili`, 
-    merchant_fail_url: `${baseURL}/siparis-basarisiz`,
+    merchant_ok_url,
+    merchant_fail_url,
     timeout_limit,
     currency,
     test_mode
