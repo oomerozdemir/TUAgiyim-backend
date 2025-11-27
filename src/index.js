@@ -15,6 +15,7 @@ import orderRoutes from "./routes/orderRoutes.js"
 import accountRoutes from "./routes/accountRoutes.js"
 import reviewRoutes from "./routes/reviewRoutes.js"
 import contactRoutes from "./routes/contactRoutes.js"
+import paymentRoutes from "./routes/paymentRoutes.js"
 
 
 dotenv.config();
@@ -61,6 +62,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/account", accountRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/contact", contactRoutes);
+app.use("/api/payment", paymentRoutes);
 
 // 404 & Error
 app.use(notFound);
