@@ -15,7 +15,7 @@ import orderRoutes from "./routes/orderRoutes.js"
 import accountRoutes from "./routes/accountRoutes.js"
 import reviewRoutes from "./routes/reviewRoutes.js"
 import contactRoutes from "./routes/contactRoutes.js"
-import paymentRoutes from "./routes/paymentRoutes.js"
+import paymentRoutes from "./routes/paymentRoutes.js";
 
 
 dotenv.config();
