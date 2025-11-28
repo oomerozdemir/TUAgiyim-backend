@@ -78,8 +78,12 @@ model Order {
   status     OrderStatus @default(PENDING)
   total      Decimal     @db.Decimal(10,2)
 
+  cargoTrackingNumber String? 
+  cargoCompany        String?
+
   shippingAddressId    String?
   shippingAddress      Address? @relation("OrderShippingAddress", fields: [shippingAddressId], references: [id])
+
 
   shippingName         String?
   shippingPhone        String?
@@ -123,6 +127,7 @@ enum OrderStatus {
   AWAITING_PAYMENT  // Ödeme ekranında 
   PAID              // Ödeme alındı
   SHIPPED           // Kargolandı
+  DELIVERED         // Teslim Edildi
   CANCELED          // İptal
 }
 
