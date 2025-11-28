@@ -1,7 +1,7 @@
 import asyncHandler from "express-async-handler";
 import prisma from "../prisma.js";
 import { sendMail } from "../utils/mailService.js";
-import { buildOrderConfirmationEmail } from "../utils/emailTemplates.js";
+import { buildOrderConfirmationEmail, buildOrderDeliveredEmail, buildOrderShippedEmail } from "../utils/emailTemplates.js";
 
 /**
  * POST /api/orders
@@ -267,16 +267,40 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   }
 
   const data = { status };
-  // Eğer kargo bilgileri gelmişse onları da güncelle
   if (cargoTrackingNumber !== undefined) data.cargoTrackingNumber = cargoTrackingNumber;
   if (cargoCompany !== undefined) data.cargoCompany = cargoCompany;
 
+  // 1. Siparişi Güncelle 
   const order = await prisma.order.update({
     where: { id },
     data,
+    include: { user: { select: { email: true, name: true } } }
   });
 
-  // Opsiyonel: Eğer status SHIPPED ise müşteriye "Kargolandı" maili atılabilir.
+  // 2. Duruma Göre Mail Gönder 
+  if (order.user?.email) {
+    
+    // A) KARGOLANDI MAİLİ
+    if (status === "SHIPPED") {
+      try {
+        const { subject, html } = buildOrderShippedEmail(order);
+        await sendMail({ to: order.user.email, subject, html });
+      } catch (e) {
+        console.error("Kargo maili hatası:", e);
+      }
+    }
+
+    // B) TESLİM EDİLDİ MAİLİ
+    if (status === "DELIVERED") {
+      try {
+        const { subject, html } = buildOrderDeliveredEmail(order);
+        await sendMail({ to: order.user.email, subject, html });
+      } catch (e) {
+        console.error("Teslimat maili hatası:", e);
+      }
+    }
+
+  }
 
   res.json(order);
 });
