@@ -211,7 +211,12 @@ export const listMyOrders = asyncHandler(async (req, res) => {
   const userId = req.user.id;
 
   const orders = await prisma.order.findMany({
-    where: { userId },
+    where: { 
+        userId,
+        status: { 
+            notIn: ["PENDING", "AWAITING_PAYMENT"] 
+        }
+    },
     orderBy: { createdAt: "desc" },
     include: {
       items: {
