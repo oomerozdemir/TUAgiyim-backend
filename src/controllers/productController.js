@@ -135,20 +135,29 @@ res.json({
 export const getProduct = asyncHandler(async (req, res) => {
   const product = await prisma.product.findUnique({
     where: { id: req.params.id },
-    include: { images: true, categories: true, sizes: true, colors: true  }, 
+    include: { 
+      images: true, 
+      categories: true, 
+      sizes: true, 
+      colors: true,
+      complementary: {
+         include: { images: true, sizes: true, colors: true } // Tamamlayıcının detayları
+      }
+    }, 
   });
   if (!product) return res.status(404).json({ message: 'Ürün bulunamadı' });
+  
   const rating = await prisma.review.aggregate({
-  where: { productId: product.id },
-  _avg: { rating: true },
-  _count: { rating: true },
-});
+    where: { productId: product.id },
+    _avg: { rating: true },
+    _count: { rating: true },
+  });
 
-res.json({
-  ...product,
-  averageRating: rating._avg.rating || 0,
-  ratingCount: rating._count.rating || 0,
-});
+  res.json({
+    ...product,
+    averageRating: rating._avg.rating || 0,
+    ratingCount: rating._count.rating || 0,
+  });
 });
 
 /**
@@ -278,16 +287,8 @@ export const createProduct = asyncHandler(async (req, res) => {
  */
 export const updateProduct = asyncHandler(async (req, res) => {
   const {
-    name,
-    slug,
-    description,
-    price,
-    featured,
-    images,
-    categoryIds,
-    sizes,
-    colors,
-    attributes,
+    name, slug, description, price, featured, images, categoryIds, sizes, colors, attributes,
+    complementaryId 
   } = req.body;
 
   const data = {
@@ -296,9 +297,8 @@ export const updateProduct = asyncHandler(async (req, res) => {
     ...(description !== undefined ? { description } : {}),
     ...(price !== undefined ? { price: Number(price) } : {}),
     ...(featured !== undefined ? { featured: !!featured } : {}),
-    ...(Array.isArray(categoryIds)
-      ? { categories: { set: categoryIds.map((id) => ({ id })) } }
-      : {}),
+    ...(complementaryId !== undefined ? { complementaryId: complementaryId || null } : {}), // <-- Güncelle
+    ...(Array.isArray(categoryIds) ? { categories: { set: categoryIds.map((id) => ({ id })) } } : {}),
   };
 
   if (Array.isArray(images)) {
@@ -307,96 +307,58 @@ export const updateProduct = asyncHandler(async (req, res) => {
   }
 
   if (Array.isArray(sizes)) {
-    const totalFromSizes = sizes.reduce(
-      (a, s) => a + Number(s.stock || 0),
-      0
-    );
-    data.sizes = {
-      deleteMany: {},
-      create: sizes.map((s) => ({
-        label: s.label,
-        stock: Number(s.stock) || 0,
-      })),
-    };
+    const totalFromSizes = sizes.reduce((a, s) => a + Number(s.stock || 0), 0);
+    data.sizes = { deleteMany: {}, create: sizes.map((s) => ({ label: s.label, stock: Number(s.stock) || 0 })) };
     data.stock = totalFromSizes;
   }
 
   if (Array.isArray(colors)) {
-    data.colors = {
-      deleteMany: {},
-      create: colors.map((c) => ({
-        label: c.label,
-        stock: Number(c.stock) || 0,
-      })),
-    };
+    data.colors = { deleteMany: {}, create: colors.map((c) => ({ label: c.label, stock: Number(c.stock) || 0 })) };
     if (!Array.isArray(sizes)) {
-      const totalFromColors = colors.reduce(
-        (a, c) => a + Number(c.stock || 0),
-        0
-      );
+      const totalFromColors = colors.reduce((a, c) => a + Number(c.stock || 0), 0);
       data.stock = totalFromColors;
     }
   }
 
-  // ✅ Ürün detayları (attributes)
   if (attributes !== undefined) {
-    data.attributes = Array.isArray(attributes)
-      ? attributes
-          .filter((a) => a.label?.trim() && a.value?.trim())
-          .map((a) => ({
-            label: a.label.trim(),
-            value: a.value.trim(),
-          }))
-      : null;
+    data.attributes = Array.isArray(attributes) ? attributes.filter((a) => a.label?.trim() && a.value?.trim()).map((a) => ({ label: a.label.trim(), value: a.value.trim() })) : null;
   }
 
   const updated = await prisma.$transaction(async (tx) => {
-  const p = await tx.product.update({
-    where: { id: req.params.id },
-    data,
-    include: { images: true, categories: true, sizes: true, colors: true },
-  });
+    const p = await tx.product.update({
+      where: { id: req.params.id },
+      data,
+      include: { images: true, categories: true, sizes: true, colors: true },
+    });
 
-  // Renkli görselleri bağla (önce colorLabel'a göre)
-  const imagesNeedingRelink = (images || []).filter(
-    (im) => im?.colorLabel && im.url
-  );
+    const imagesNeedingRelink = (images || []).filter((im) => im?.colorLabel && im.url);
 
-  if (imagesNeedingRelink.length && p.colors?.length) {
-    for (const im of imagesNeedingRelink) {
-      const color = p.colors.find((c) => c.label === im.colorLabel);
-      if (!color) continue;
-      const existing = p.images.find((x) =>
-        im.publicId ? x.publicId === im.publicId : x.url === im.url
-      );
-      if (existing) {
-        await tx.productImage.update({
-          where: { id: existing.id },
-          data: { colorId: color.id },
-        });
+    if (imagesNeedingRelink.length && p.colors?.length) {
+      for (const im of imagesNeedingRelink) {
+        const color = p.colors.find((c) => c.label === im.colorLabel);
+        if (!color) continue;
+        const existing = p.images.find((x) => im.publicId ? x.publicId === im.publicId : x.url === im.url);
+        if (existing) {
+          await tx.productImage.update({ where: { id: existing.id }, data: { colorId: color.id } });
+        }
       }
     }
-  }
-  // ❗ colorLabel gelmemişse index'e göre eşleştir
-  else if (p.colors?.length && p.images?.length) {
-    const len = Math.min(p.colors.length, p.images.length);
-    for (let i = 0; i < len; i++) {
-      const color = p.colors[i];
-      const img = p.images[i];
-      if (!color || !img) continue;
-
-      await tx.productImage.update({
-        where: { id: img.id },
-        data: { colorId: color.id },
-      });
+    else if (p.colors?.length && p.images?.length) {
+      const len = Math.min(p.colors.length, p.images.length);
+      for (let i = 0; i < len; i++) {
+        const color = p.colors[i];
+        const img = p.images[i];
+        if (!color || !img) continue;
+        await tx.productImage.update({ where: { id: img.id }, data: { colorId: color.id } });
+      }
     }
-  }
-
-  return p;
-});
+    return p;
+  });
 
   res.json(updated);
 });
+
+
 /**
  * DELETE /api/products/:id
  */

@@ -43,8 +43,12 @@ model Product {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   featured  Boolean  @default(false)
+  
+  complementaryId String?  
+  complementary   Product? @relation("Complementary", fields: [complementaryId], references: [id]) // Bağlı olduğu ürün
+  complementedBy  Product[] @relation("Complementary")
+  
   images      ProductImage[]
-
   orderItems  OrderItem[]
   movements   StockMovement[]
   categories  Category[] @relation("ProductCategories")
