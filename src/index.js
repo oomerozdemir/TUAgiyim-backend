@@ -15,7 +15,9 @@ import orderRoutes from "./routes/orderRoutes.js"
 import accountRoutes from "./routes/accountRoutes.js"
 import reviewRoutes from "./routes/reviewRoutes.js"
 import contactRoutes from "./routes/contactRoutes.js"
-import paymentRoutes from "./routes/paymentRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js"
+
+import { getSitemap } from "./controllers/sitemapController.js";
 
 
 dotenv.config();
@@ -51,6 +53,7 @@ app.get('/api/health', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+app.get("/sitemap.xml", getSitemap);
 
 // Routes
 app.use('/api/products', productRoutes);
@@ -78,6 +81,7 @@ app.get("/", (req, res) => {
 // 404 & Error
 app.use(notFound);
 app.use(errorHandler);
+
 
 
 const PORT = process.env.PORT || 5000;
