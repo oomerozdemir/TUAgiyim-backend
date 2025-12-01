@@ -60,28 +60,37 @@ export const getCategory = asyncHandler(async (req, res) => {
  * POST /api/categories
  */
 export const createCategory = asyncHandler(async (req, res) => {
-  const { name, slug, imageUrl, publicId, parentId } = req.body;
+  const { name, slug, imageUrl, publicId, parentId, isFeatured } = req.body; // isFeatured eklendi
   if (!name || !slug) return res.status(400).json({ message: "name ve slug gerekli" });
 
   const item = await prisma.category.create({
-    data: { name, slug, imageUrl, publicId, parentId: parentId || null },
+    data: {
+      name,
+      slug,
+      imageUrl: imageUrl || null,
+      publicId: publicId || null,
+      parentId: parentId || null,
+      isFeatured: Boolean(isFeatured), 
+    },
   });
   res.status(201).json(item);
 });
-
 
 /**
  * PUT /api/categories/:id
  */
 export const updateCategory = asyncHandler(async (req, res) => {
-  const { name, slug, imageUrl, publicId, parentId } = req.body;
+  const { name, slug, imageUrl, publicId, parentId, isFeatured } = req.body; // isFeatured eklendi
+
   const data = {
     ...(name !== undefined ? { name } : {}),
     ...(slug !== undefined ? { slug } : {}),
     ...(parentId !== undefined ? { parentId: parentId || null } : {}),
+    ...(isFeatured !== undefined ? { isFeatured: Boolean(isFeatured) } : {}), // Güncelleme
   };
-  if (imageUrl !== undefined) data.imageUrl = imageUrl;
-  if (publicId !== undefined) data.publicId = publicId;
+
+  if (imageUrl !== undefined) data.imageUrl = imageUrl || null;
+  if (publicId !== undefined) data.publicId = publicId || null;
 
   if (data.parentId === req.params.id) {
     return res.status(400).json({ message: "Kategori kendi altına taşınamaz." });

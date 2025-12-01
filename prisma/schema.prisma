@@ -28,6 +28,9 @@ model Category {
   slug      String    @unique
   imageUrl  String?  
   publicId  String? 
+
+  isFeatured Boolean @default(false)
+  
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
