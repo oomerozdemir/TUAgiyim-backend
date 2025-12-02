@@ -169,6 +169,7 @@ export const createProduct = asyncHandler(async (req, res) => {
     slug,
     description,
     price,
+    originalPrice,
     images = [],
     categoryIds = [],
     featured = false,
@@ -198,6 +199,7 @@ export const createProduct = asyncHandler(async (req, res) => {
     slug,
     description,
     price: Number(price),
+    originalPrice: originalPrice ? Number(originalPrice) : null,
     featured: Boolean(featured),
     stock: totalStock,
     ...(imgsCreate ? { images: imgsCreate } : {}),
@@ -287,7 +289,7 @@ export const createProduct = asyncHandler(async (req, res) => {
  */
 export const updateProduct = asyncHandler(async (req, res) => {
   const {
-    name, slug, description, price, featured, images, categoryIds, sizes, colors, attributes,
+    name, slug, description, price, originalPrice, featured, images, categoryIds, sizes, colors, attributes,
     complementaryId 
   } = req.body;
 
@@ -296,6 +298,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
     ...(slug !== undefined ? { slug } : {}),
     ...(description !== undefined ? { description } : {}),
     ...(price !== undefined ? { price: Number(price) } : {}),
+    ...(originalPrice !== undefined ? { originalPrice: originalPrice ? Number(originalPrice) : null } : {}),
     ...(featured !== undefined ? { featured: !!featured } : {}),
     ...(complementaryId !== undefined ? { complementaryId: complementaryId || null } : {}), // <-- Güncelle
     ...(Array.isArray(categoryIds) ? { categories: { set: categoryIds.map((id) => ({ id })) } } : {}),
