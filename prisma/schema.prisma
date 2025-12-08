@@ -20,6 +20,7 @@ model User {
   favorites Favorite[]  
   addresses Address[]
   reviews   Review[]
+  returns   ReturnRequest[]
 }
 
 model Category {
@@ -111,6 +112,7 @@ model Order {
   updatedAt  DateTime    @updatedAt
 
   items      OrderItem[]
+  returns    ReturnRequest[]
 }
 
 model OrderItem {
@@ -128,11 +130,13 @@ model OrderItem {
   color     ProductColor?  @relation("OrderItemColor", fields: [colorId], references: [id], onDelete: SetNull)
   sizeLabel String?
   colorLabel String?
+  returnItems ReturnItem[]
 
   @@index([orderId])
   @@index([productId])
   @@index([sizeId])
   @@index([colorId])
+  
 }
 
 enum OrderStatus {
@@ -256,4 +260,46 @@ model ContactMessage {
   message   String
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
+}
+
+
+// --- İade MODELLERİ ---
+
+model ReturnRequest {
+  id        String       @id @default(cuid())
+  
+  order     Order        @relation(fields: [orderId], references: [id])
+  orderId   String
+  
+  user      User         @relation(fields: [userId], references: [id])
+  userId    String
+
+  status    ReturnStatus @default(PENDING)
+  reason    String       
+  adminNote String?      
+
+  items     ReturnItem[]
+
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model ReturnItem {
+  id              String        @id @default(cuid())
+  
+  returnRequest   ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+  returnRequestId String
+
+  orderItem       OrderItem     @relation(fields: [orderItemId], references: [id])
+  orderItemId     String
+
+  quantity        Int           @default(1)
+}
+
+enum ReturnStatus {
+  PENDING
+  APPROVED
+  RECEIVED
+  REFUNDED
+  REJECTED
 }

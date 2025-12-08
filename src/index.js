@@ -16,6 +16,7 @@ import accountRoutes from "./routes/accountRoutes.js"
 import reviewRoutes from "./routes/reviewRoutes.js"
 import contactRoutes from "./routes/contactRoutes.js"
 import paymentRoutes from "./routes/paymentRoutes.js"
+import returnRoutes from "./routes/returnRoutes.js";
 
 import { getSitemap } from "./controllers/sitemapController.js";
 
@@ -68,6 +69,7 @@ app.use("/api/account", accountRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/payment", paymentRoutes);
+app.use("/api/returns", returnRoutes);
 
 app.get("/", (req, res) => {
   res.json({
