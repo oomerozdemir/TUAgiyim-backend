@@ -169,18 +169,29 @@ export const createProduct = asyncHandler(async (req, res) => {
     slug,
     description,
     price,
-    originalPrice,
     images = [],
     categoryIds = [],
     featured = false,
     sizes = [],
     colors = [],
     attributes = [],
+    originalPrice, // Eğer önceki adımlarda eklediyseniz bunu da alın
   } = req.body;
 
   if (!name || !slug || price === undefined) {
     return res.status(400).json({ message: "name, slug ve price gereklidir" });
   }
+
+  // --- SLUG KONTROLÜ (YENİ EKLENEN KISIM) ---
+  let uniqueSlug = slug;
+  let counter = 1;
+
+  // Slug benzersiz olana kadar döngü kur (Örn: elbise -> elbise-1 -> elbise-2)
+  while (await prisma.product.findUnique({ where: { slug: uniqueSlug } })) {
+    uniqueSlug = `${slug}-${counter}`;
+    counter++;
+  }
+  // ------------------------------------------
 
   const totalFromSizes = (Array.isArray(sizes) ? sizes : []).reduce(
     (a, s) => a + Number(s.stock || 0),
@@ -196,7 +207,7 @@ export const createProduct = asyncHandler(async (req, res) => {
 
   const data = {
     name,
-    slug,
+    slug: uniqueSlug, // <-- Kontrol edilmiş slug'ı kullanıyoruz
     description,
     price: Number(price),
     originalPrice: originalPrice ? Number(originalPrice) : null,
@@ -237,52 +248,51 @@ export const createProduct = asyncHandler(async (req, res) => {
   };
 
   const created = await prisma.$transaction(async (tx) => {
-  const p = await tx.product.create({
-    data,
-    include: { images: true, categories: true, sizes: true, colors: true },
-  });
+    const p = await tx.product.create({
+      data,
+      include: { images: true, categories: true, sizes: true, colors: true },
+    });
 
-  // Renkli görselleri eşleştir (önce colorLabel’a göre)
-  const imagesNeedingRelink = (images || []).filter(
-    (im) => im?.colorLabel && im.url
-  );
+    // Renkli görselleri eşleştir (önce colorLabel’a göre)
+    const imagesNeedingRelink = (images || []).filter(
+      (im) => im?.colorLabel && im.url
+    );
 
-  if (imagesNeedingRelink.length && p.colors?.length) {
-    for (const im of imagesNeedingRelink) {
-      const color = p.colors.find((c) => c.label === im.colorLabel);
-      if (!color) continue;
-      const existing = p.images.find((x) =>
-        im.publicId ? x.publicId === im.publicId : x.url === im.url
-      );
-      if (existing) {
+    if (imagesNeedingRelink.length && p.colors?.length) {
+      for (const im of imagesNeedingRelink) {
+        const color = p.colors.find((c) => c.label === im.colorLabel);
+        if (!color) continue;
+        const existing = p.images.find((x) =>
+          im.publicId ? x.publicId === im.publicId : x.url === im.url
+        );
+        if (existing) {
+          await tx.productImage.update({
+            where: { id: existing.id },
+            data: { colorId: color.id },
+          });
+        }
+      }
+    }
+    // ❗ colorLabel yoksa: index'e göre eşleştir (1. renk -> 1. görsel, vb.)
+    else if (p.colors?.length && p.images?.length) {
+      const len = Math.min(p.colors.length, p.images.length);
+      for (let i = 0; i < len; i++) {
+        const color = p.colors[i];
+        const img = p.images[i];
+        if (!color || !img) continue;
+
         await tx.productImage.update({
-          where: { id: existing.id },
+          where: { id: img.id },
           data: { colorId: color.id },
         });
       }
     }
-  }
-  // ❗ colorLabel yoksa: index'e göre eşleştir (1. renk -> 1. görsel, vb.)
-  else if (p.colors?.length && p.images?.length) {
-    const len = Math.min(p.colors.length, p.images.length);
-    for (let i = 0; i < len; i++) {
-      const color = p.colors[i];
-      const img = p.images[i];
-      if (!color || !img) continue;
 
-      await tx.productImage.update({
-        where: { id: img.id },
-        data: { colorId: color.id },
-      });
-    }
-  }
-
-  return p;
-});
+    return p;
+  });
 
   res.status(201).json(created);
 });
-
 
 /**
  * PUT /api/products/:id
