@@ -214,7 +214,7 @@ export const listMyOrders = asyncHandler(async (req, res) => {
     where: { 
         userId,
         status: { 
-            notIn: ["PENDING", "AWAITING_PAYMENT"] 
+            notIn: ["PENDING", "AWAITING_PAYMENT", "PAYMENT_FAILED", "CANCELLED"] 
         }
     },
     orderBy: { createdAt: "desc" },
