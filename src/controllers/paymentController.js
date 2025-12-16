@@ -100,7 +100,7 @@ export const startPayment = asyncHandler(async (req, res) => {
     user_address: addressInfo.address,
     user_phone: addressInfo.phone,
     user_basket,
-    test_mode: process.env.PAYTR_TEST_MODE || 0
+    test_mode: process.env.PAYTR_TEST_MODE || 1
   });
 
   if (paytrResult.status === "success") {
