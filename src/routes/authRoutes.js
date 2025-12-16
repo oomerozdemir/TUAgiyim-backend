@@ -6,9 +6,11 @@ import {
   refreshToken,
   logout,
   updateProfile,
-  changePassword
+  changePassword,
+  listUsers
 } from "../controllers/authController.js";
 import { protect } from "../middlewares/authMiddleware.js";
+import { isAdmin } from "../middlewares/isAdmin.js";
 
 const router = Router();
 
@@ -17,6 +19,7 @@ router.post("/login", loginUser);
 router.post("/refresh", refreshToken);   
 router.get("/profile", protect, getProfile);
 router.post("/logout", logout);
+router.get("/users", protect, isAdmin, listUsers);
 
 router.get("/profile", protect, getProfile);
 router.put("/profile", protect, updateProfile);       

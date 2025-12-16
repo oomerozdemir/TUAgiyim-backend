@@ -172,3 +172,25 @@ export const changePassword = asyncHandler(async (req, res) => {
 
   res.json({ ok: true, message: "Parola başarıyla güncellendi." });
 });
+
+/**
+ * GET /api/auth/users
+ * Tüm kullanıcıları listele (Sadece Admin)
+ */
+export const listUsers = asyncHandler(async (req, res) => {
+  const users = await prisma.user.findMany({
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      createdAt: true,
+      // password alanını bilerek seçmiyoruz
+      _count: {
+        select: { orders: true } // Kullanıcının kaç siparişi var bilgisini de alalım
+      }
+    }
+  });
+  res.json(users);
+});
